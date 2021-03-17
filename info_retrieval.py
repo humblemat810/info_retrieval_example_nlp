@@ -50,9 +50,12 @@ for p in posts_list_tokenized:
 # simplex case, monogram
 
 post_corpus=set()
+from collections import Counter
+post_corpus_counter = Counter()
 for p in posts_list_tokenized_stop_removed:
-    for word in p:
-        post_corpus.add(word) 
+    post_corpus_counter+=  Counter(p)
+        
+post_freq_inv_vector = {k: 1/v for (k, v) in post_corpus_counter.items()}
 
 
 
