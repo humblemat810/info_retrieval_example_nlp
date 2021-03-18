@@ -21,6 +21,7 @@ for i, ln in enumerate(txt_proper2):
     if len(ln) > 0:
         to_append = json.loads(ln)
         if len(to_append["content"]) > min_length_content:
+            # forget about comment at this moment
             to_append_content = to_append['content']
             posts_list.append(to_append_content)
 
@@ -33,7 +34,7 @@ from nltk.corpus import stopwords
 
 
 def is_valid_posts(p):
-    if len(nltk.tokenize(p)) < 10 :
+    if len(nltk.tokenize(p)) < min_length_content :
         return False
     
     return True
@@ -43,25 +44,66 @@ stopwords_list =  stopwords.words("english")
 posts_list_tokenized = [nltk.tokenize.word_tokenize(p) for p in posts_list]
 
 posts_list_tokenized_stop_removed = []
-def filter_word(list_token):
-    return [word.lower() for word in list_token if word.isalpha() and  word not in stopwords_list]
-    
-for p in posts_list_tokenized:
-    p2 = filter_word(p)
-    posts_list_tokenized_stop_removed.append(p2 )
+
+#remove stopword and punctuation
+
+
    
 
 #%%    
 # simplex case, monogram
-def to_vector(sortedkeys):
-    pass
+
 post_corpus=set()
 from collections import Counter
 post_corpus_counter = Counter()
-for p in posts_list_tokenized_stop_removed:
-    post_corpus_counter+=  Counter(p)
-        
+def filter_word(list_token):
+    return [word.lower() for word in list_token if word.isalpha() and  word not in stopwords_list]
+    
+
+gram = 1
+if gram == 1:
+    for p in posts_list_tokenized:
+        p2 = filter_word(p)
+        if len(p2) >= min_length_content:
+            posts_list_tokenized_stop_removed.append(p2 )
+    
+    
+    def to_vector(sortedkeys):
+        pass
+    
+    for p in posts_list_tokenized_stop_removed:
+        post_corpus_counter+=  Counter(p)
+            
+    
+    
+    
+    for p in posts_list_tokenized_stop_removed:
+        post_corpus_counter+=  Counter(p)
+
+elif gram == 2:
+# digram
+    raise(NotImplementedError("work in progress"))
+
+    for p in posts_list_tokenized[:10]:
+        for i_digram in range(len(p)-1):
+            # simple rules, both not stop words
+            digram = tuple(p[i_digram:i_digram+2])
+            if len(filter_word(digram)) > 0:
+                post_corpus.add(digram)
+                post_corpus_counter[digram]+=1
+                pass
+            
+            pass
+
+
+
 post_freq_inv_vector_dict = {k: 1/v for (k, v) in post_corpus_counter.items()}
+
+
+
+
+
+
 
 #%% sort keys according to alphabetical order
 sorted_keys = sorted(post_freq_inv_vector_dict.keys())
@@ -96,9 +138,9 @@ def to_vector(post, sortedkeys = None):
         post_vector_np[0,idx] = cnt
     return post_vector_np
 
-# test with 10 posts first
 vectorized_post = []
-for p in posts_list_tokenized_stop_removed[:10]:
+
+for p in posts_list_tokenized_stop_removed[:]:
     vectorized_post.append(to_vector(p, sortedkeys = sorted_keys) *
                            post_freq_inv_vector_np)
 
@@ -107,7 +149,8 @@ for p in posts_list_tokenized_stop_removed[:10]:
 # high dimensional nearest neighbour search brute force first
 
 search_word_list = ["knowledge", "management"]
-search_word_list = posts_list_tokenized_stop_removed[2]
+# uncomment and pick a post to see if can find itself
+# search_word_list = posts_list_tokenized_stop_removed[895]
 search_filtered = filter_word(search_word_list)
 vectorized_search = to_vector(search_filtered, sortedkeys = sorted_keys)
 
@@ -126,6 +169,13 @@ if len(search_filtered) > 0:
     
 else:
     raise ValueError("search keyworkds contain stopwords only")
+
+# brute force done, now do some clustering on topics
+""" many to choose from before needing to invent own:
+    https://scikit-learn.org/stable/modules/clustering.html
+    """
+
+
 
 
 
