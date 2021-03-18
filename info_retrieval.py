@@ -43,8 +43,11 @@ stopwords_list =  stopwords.words("english")
 posts_list_tokenized = [nltk.tokenize.word_tokenize(p) for p in posts_list]
 
 posts_list_tokenized_stop_removed = []
+def filter_word(list_token):
+    return [word.lower() for word in list_token if word.isalpha() and  word not in stopwords_list]
+    
 for p in posts_list_tokenized:
-    p2 = [word.lower() for word in p if word.isalpha() and  word not in stopwords_list]
+    p2 = filter_word(p)
     posts_list_tokenized_stop_removed.append(p2 )
    
 
@@ -69,8 +72,6 @@ for i, k in enumerate(sorted_keys):
     post_freq_inv_vector_np[0][i] = v
 
 
-from matplotlib import pyplot as plt
-plt.plot(post_freq_inv_vector_np.transpose())
 
 #%%
 l0  = len(posts_list)
@@ -98,7 +99,33 @@ def to_vector(post, sortedkeys = None):
 # test with 10 posts first
 vectorized_post = []
 for p in posts_list_tokenized_stop_removed[:10]:
-    vectorized_post.append(to_vector(p, sortedkeys = sorted_keys))
+    vectorized_post.append(to_vector(p, sortedkeys = sorted_keys) *
+                           post_freq_inv_vector_np)
+
+
+
+# high dimensional nearest neighbour search brute force first
+
+search_word_list = ["knowledge", "management"]
+search_word_list = posts_list_tokenized_stop_removed[2]
+search_filtered = filter_word(search_word_list)
+vectorized_search = to_vector(search_filtered, sortedkeys = sorted_keys)
+
+if len(search_filtered) > 0:
+    # simplest case find 1 post only
+    max_post = None
+    max_similarity = 0
+    for post_ID , tgt in enumerate(vectorized_post):
+        siamese_cosine = np.sum(vectorized_search * tgt, axis = 1)
+        siamese_cosine /= (np.sum(vectorized_search, axis = 1) * 
+                           np.sum(tgt, axis = 1) )
+        print(siamese_cosine)
+        if siamese_cosine > max_similarity:
+            max_similarity, max_post, max_post_ID = siamese_cosine, tgt, post_ID
+        print(posts_list[max_post_ID])
+    
+else:
+    raise ValueError("search keyworkds contain stopwords only")
 
 
 
