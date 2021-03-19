@@ -201,23 +201,47 @@ else:
 from sklearn.cluster import AgglomerativeClustering, Birch, DBSCAN, KMeans
 
 vectorized_post2 = [v[0,:] for v in vectorized_post]
-
-myCluster4 = KMeans(n_clusters = 10).fit(vectorized_post2[:1200])
-myCluster3 = DBSCAN(n_clusters = 10).fit(vectorized_post2[:1200])
-myCluster2 = Birch(n_clusters = 10).fit(vectorized_post2[:1200])
+n_cluster = 10
+myCluster4 = KMeans(n_clusters = n_cluster).fit(vectorized_post2[:1200])
+myCluster3 = DBSCAN(n_clusters = n_cluster).fit(vectorized_post2[:1200])
+myCluster2 = Birch(n_clusters = n_cluster).fit(vectorized_post2[:1200])
 myCluster = AgglomerativeClustering(n_clusters = 10).fit(vectorized_post2[:1200])
 from matplotlib import pyplot as plt
 plt.plot(myCluster.labels_)
 
+#%% group posts by labels
+from collections import defaultdict
+posts_ID_group_by_topic = defaultdict(list)
+for i, group_num in enumerate(myCluster.labels_):
+    posts_ID_group_by_topic[group_num].append(i)
+    
+    pass
+topic_centroid = np.zeros([n_cluster,len(sorted_keys)])
+vectorized_post_np = np.concatenate(vectorized_post, axis = 0)
+for label, list_of_post_id in posts_ID_group_by_topic.items():
+    topic_posts = vectorized_post_np[list_of_post_id]
+    topic_centroid[label] = np.mean(topic_posts, axis = 0)
+    pass
+
+def exhaust_nearest_siamese(tgt, lookup):
+    tgt_magnitude = np.sqrt(np.sum(tgt**2, axis = 1))
+    projection = np.dot(lookup, tgt.transpose())
+    magnitude = np.sqrt(np.sum(lookup**2, axis = 1))
+    projection_normalised = np.concatenate([projection[i] / (magnitude[i] * tgt_magnitude) for i in range (len(projection))])
+    return np.argmax(projection_normalised )
+    
+topic = exhaust_nearest_siamese(tgt = vectorized_search,lookup =  topic_centroid)
+
+topic_posts_vectorized = vectorized_post_np[posts_ID_group_by_topic[topic]]
+topic_posts = [posts_list[i] for i in posts_ID_group_by_topic[0]]
 
 
-###
+in_topic_similarity = np.dot(topic_posts_vectorized, vectorized_search.transpose())
+tgt_magnitude = np.sqrt(np.sum(vectorized_search**2, axis = 1))
+magnitude = np.sqrt(np.sum(topic_posts**2, axis = 1))
+similarity_normalised = np.concatenate([in_topic_similarity[i] / (magnitude[i] * tgt_magnitude) for i in range (len(in_topic_similarity))])
 
-corpus = [" ".join(i) for i in posts_list_tokenized_stop_removed]
-from sklearn import feature_extraction  
-from sklearn.feature_extraction.text import TfidfTransformer  
-from sklearn.feature_extraction.text import CountVectorizer
-vectorizer = CountVectorizer()
-transformer = TfidfTransformer()
-tfidf = transformer.fit_transform(vectorizer.fit_transform(corpus))
-word = vectorizer.get_feature_names()
+
+
+post_sorted_by_simiarity = np.array(topic_posts)[np.argsort(similarity_normalised, axis = 0)]
+
