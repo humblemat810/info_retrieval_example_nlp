@@ -56,10 +56,11 @@ posts_list_tokenized_stop_removed = []
 post_corpus=set()
 from collections import Counter
 post_corpus_counter = Counter()
+ndoc_counter = Counter()
 def filter_word(list_token):
     return [word.lower() for word in list_token if word.isalpha() and  word not in stopwords_list]
     
-
+doc_req_counter = Counter()
 gram = 1
 if gram == 1:
     for p in posts_list_tokenized:
@@ -73,18 +74,19 @@ if gram == 1:
     
     for p in posts_list_tokenized_stop_removed:
         post_corpus_counter+=  Counter(p)
-            
-    
-    
-    
-    for p in posts_list_tokenized_stop_removed:
-        post_corpus_counter+=  Counter(p)
+        word_set = set()
+        for word in p:
+            word_set.add(word)
+        for word in word_set:
+            doc_req_counter[word] += 1
+
 
 elif gram == 2:
 # digram
     raise(NotImplementedError("work in progress"))
 
     for p in posts_list_tokenized[:10]:
+        
         for i_digram in range(len(p)-1):
             # simple rules, both not stop words
             digram = tuple(p[i_digram:i_digram+2])
@@ -97,7 +99,7 @@ elif gram == 2:
 
 
 
-post_freq_inv_vector_dict = {k: 1/v for (k, v) in post_corpus_counter.items()}
+term_freq_dict = {k: v for (k, v) in post_corpus_counter.items()}
 
 
 
@@ -106,12 +108,21 @@ post_freq_inv_vector_dict = {k: 1/v for (k, v) in post_corpus_counter.items()}
 
 
 #%% sort keys according to alphabetical order
-sorted_keys = sorted(post_freq_inv_vector_dict.keys())
+sorted_keys = sorted(term_freq_dict.keys())
 import numpy as np
-post_freq_inv_vector_np = np.zeros([1, len(sorted_keys)])
+term_freq_vector_np = np.zeros([1, len(sorted_keys)])
 for i, k in enumerate(sorted_keys):
-    v = post_freq_inv_vector_dict[k]
-    post_freq_inv_vector_np[0][i] = v
+    v = term_freq_dict[k]
+    term_freq_vector_np[0][i] = v
+
+#%% calculat IDF   http://www.tfidf.com/
+idf_np = np.zeros([1, len(sorted_keys)])
+n_doc = len(posts_list_tokenized_stop_removed)
+for i, key in enumerate(sorted_keys):
+    cnt = doc_req_counter[key]
+    idf_np[0,i] = np.log(n_doc / cnt)  
+    # suppose any high-frequency suppressing function work
+
 
 
 
@@ -125,6 +136,15 @@ print(f"before {len(posts_list)}, after {len(posts_list_tokenized)}, removed {dl
 word_2_index = {}
 for i , k in enumerate(sorted_keys):
     word_2_index[k] = i
+
+def get_idf(word):
+    if word not in word_2_index:
+        return -1
+    
+    return idf_np[0, word_2_index[word]]
+
+tf_idf_np = term_freq_vector_np * idf_np
+
 def to_vector(post, sortedkeys = None):
     from collections import Counter
     
@@ -140,16 +160,19 @@ def to_vector(post, sortedkeys = None):
 
 vectorized_post = []
 
-for p in posts_list_tokenized_stop_removed[:]:
+for i, p in enumerate(posts_list_tokenized_stop_removed[:]):
+    if i % 100 == 0:
+        print(f"Done {i} posts")
     vectorized_post.append(to_vector(p, sortedkeys = sorted_keys) *
-                           post_freq_inv_vector_np)
+                           tf_idf_np)
 
-
+#%% brute force search
 
 # high dimensional nearest neighbour search brute force first
 
 search_word_list = ["knowledge", "management"]
-# uncomment and pick a post to see if can find itself
+# uncomment below and pick a post to see if can find itself as a sanity test
+
 # search_word_list = posts_list_tokenized_stop_removed[895]
 search_filtered = filter_word(search_word_list)
 vectorized_search = to_vector(search_filtered, sortedkeys = sorted_keys)
@@ -169,15 +192,32 @@ if len(search_filtered) > 0:
     
 else:
     raise ValueError("search keyworkds contain stopwords only")
-
+#%%
 # brute force done, now do some clustering on topics
 """ many to choose from before needing to invent own:
     https://scikit-learn.org/stable/modules/clustering.html
     """
 
+from sklearn.cluster import AgglomerativeClustering, Birch, DBSCAN, KMeans
+
+vectorized_post2 = [v[0,:] for v in vectorized_post]
+
+myCluster4 = KMeans(n_clusters = 10).fit(vectorized_post2[:1200])
+myCluster3 = DBSCAN(n_clusters = 10).fit(vectorized_post2[:1200])
+myCluster2 = Birch(n_clusters = 10).fit(vectorized_post2[:1200])
+myCluster = AgglomerativeClustering(n_clusters = 10).fit(vectorized_post2[:1200])
+from matplotlib import pyplot as plt
+plt.plot(myCluster.labels_)
 
 
 
+###
 
-
-
+corpus = [" ".join(i) for i in posts_list_tokenized_stop_removed]
+from sklearn import feature_extraction  
+from sklearn.feature_extraction.text import TfidfTransformer  
+from sklearn.feature_extraction.text import CountVectorizer
+vectorizer = CountVectorizer()
+transformer = TfidfTransformer()
+tfidf = transformer.fit_transform(vectorizer.fit_transform(corpus))
+word = vectorizer.get_feature_names()
