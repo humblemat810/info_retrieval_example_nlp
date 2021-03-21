@@ -126,7 +126,7 @@ for i, key in enumerate(sorted_keys):
 
 
 
-#%%
+#%% vectorising post
 l0  = len(posts_list)
 l1 = len(posts_list_tokenized)
 dl = l0-l1
@@ -202,9 +202,10 @@ from sklearn.cluster import AgglomerativeClustering, Birch, DBSCAN, KMeans
 
 vectorized_post2 = [v[0,:] for v in vectorized_post]
 n_cluster = 10
-myCluster4 = KMeans(n_clusters = n_cluster).fit(vectorized_post2[:1200])
-myCluster3 = DBSCAN(n_clusters = n_cluster).fit(vectorized_post2[:1200])
-myCluster2 = Birch(n_clusters = n_cluster).fit(vectorized_post2[:1200])
+# other choices commented
+# myCluster = KMeans(n_clusters = n_cluster).fit(vectorized_post2[:1200])
+# myCluster = DBSCAN(n_clusters = n_cluster).fit(vectorized_post2[:1200])
+# myCluster = Birch(n_clusters = n_cluster).fit(vectorized_post2[:1200])
 myCluster = AgglomerativeClustering(n_clusters = 10).fit(vectorized_post2[:1200])
 from matplotlib import pyplot as plt
 plt.plot(myCluster.labels_)
@@ -238,7 +239,7 @@ topic_posts = [posts_list[i] for i in posts_ID_group_by_topic[0]]
 
 in_topic_similarity = np.dot(topic_posts_vectorized, vectorized_search.transpose())
 tgt_magnitude = np.sqrt(np.sum(vectorized_search**2, axis = 1))
-magnitude = np.sqrt(np.sum(topic_posts**2, axis = 1))
+magnitude = np.sqrt(np.sum(topic_posts_vectorized**2, axis = 1))
 similarity_normalised = np.concatenate([in_topic_similarity[i] / (magnitude[i] * tgt_magnitude) for i in range (len(in_topic_similarity))])
 
 
